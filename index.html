@@ -1,0 +1,1883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rypd - Cosmic Fitness Tracker</title>
+    <!-- Google Fonts: Orbitron for headings, Lato for body -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Tailwind CSS Custom Configuration -->
+    <!-- This script MUST come BEFORE any custom <style> tags or your main JavaScript -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        // Reverted to the preferred cosmic theme colors
+                        rypdBlue: '#1A1A2E',          /* Deep Dark Blue/Almost Black - Main Background */
+                        rypdDarkBlue: '#2E2E4A',      /* Darker Blue-Gray - Card/Container Background */
+                        rypdMidBlue: '#3A5068',       /* Medium Blue-Gray - Inner Backgrounds/Borders */
+                        rypdWhite: '#E0E0E0',         /* Light Gray - Main Text */
+                        rypdLightGray: '#A0A0B0',     /* Medium Light Gray - Secondary Text/Icons */
+                        rypdAccentPrimaryFrom: '#6A0DAD', /* Purple for gradient start */
+                        rypdAccentPrimaryTo: '#00FFFF',   /* Blue/Cyan for gradient end */
+                        rypdAccentRed: '#FF0000',       /* Red for likes/alerts */
+                        rypdAccentMagenta: '#FF00FF',   /* Magenta for some highlights */
+                        rypdAccentGreen: '#32CD32',     /* Lime Green for some highlights */
+                        rypdAccentGold: '#FFD700',      /* Gold for some highlights */
+                        rypdAccentOrange: '#FF4500',    /* Orange for some highlights */
+                        // Standard Tailwind colors used in gradients (ensure they are recognized)
+                        'purple-600': '#9333ea', /* Used in gradients for splash/buttons */
+                        'blue-500': '#3b82f6',   /* Used in gradients for splash/buttons */
+                        'purple-500': '#a855f7',
+                        'red-500': '#ef4444',
+                        'green-500': '#22c55e',
+                        'yellow-500': '#eab308',
+                        'orange-500': '#f97316',
+                        'cyan-500': '#06b6d4',
+                    },
+                    fontFamily: {
+                        orbitron: ['Orbitron', 'sans-serif'],
+                        lato: ['Lato', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Chart.js for progress chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Custom CSS for global styles, animations, and character effects -->
+    <style>
+        /* Apply Lato to body, Orbitron to headings */
+        body {
+            font-family: 'Lato', sans-serif;
+            min-height: 100vh; /* Ensure body takes full viewport height */
+            margin: 0; /* Remove default body margin */
+            display: flex; /* Ensure flexbox for centering */
+            flex-direction: column; /* Stack content vertically */
+            align-items: center; /* Center horizontally */
+            justify-content: flex-start; /* Align to top initially, flex-grow handles spacing */
+            background-color: var(--tw-colors-rypdBlue); /* Use CSS variable for consistency */
+            color: var(--tw-colors-rypdWhite); /* Use CSS variable for consistency */
+        }
+        html {
+            min-height: 100vh; /* Ensure html takes full viewport height */
+        }
+        h1, h2, h3 {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Splash Screen Centering Fix */
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh; /* Use 100vh for full viewport height */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            background-color: var(--tw-colors-rypdBlue); /* Ensure background is set */
+        }
+
+        /* Message display animation */
+        .fade-in {
+            animation: fadeIn 0.3s forwards;
+        }
+        .fade-out {
+            animation: fadeOut 0.3s forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -10px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translate(-50%, 0); }
+            to { opacity: 0; transform: translate(-50%, -10px); }
+        }
+
+        /* Like button pulse animation */
+        .pulse-animation {
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3); /* Lighter border for dark background */
+            border-left-color: var(--tw-colors-rypdAccentPrimaryTo); /* Accent color for spinner (Cyan) */
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Splash screen specific animations */
+        .splash-title-enter {
+            animation: splashTitleEnter 1.5s ease-out forwards;
+            opacity: 0;
+            transform: scale(0.5);
+        }
+        @keyframes splashTitleEnter {
+            0% { opacity: 0; transform: scale(0.5); }
+            70% { opacity: 1; transform: scale(1.1); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        .splash-button-enter {
+            animation: splashButtonEnter 1s ease-out forwards;
+            opacity: 0;
+            transform: translateY(20px);
+            animation-delay: 1s; /* Delay after title */
+        }
+        @keyframes splashButtonEnter {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Splash screen exit animation */
+        .splash-exit-animation {
+            animation: splashExit 0.8s ease-in-out forwards;
+        }
+        @keyframes splashExit {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-100vh); }
+        }
+
+        /* App entry animation */
+        .app-enter-animation {
+            animation: appEnter 0.8s ease-in-out forwards;
+            animation-delay: 0.2s; /* Slight delay to overlap with splash exit */
+            opacity: 0;
+            transform: translateY(100vh);
+        }
+        @keyframes appEnter {
+            0% { opacity: 0; transform: translateY(100vh); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Splash screen background: Cosmic dust/starlight effect */
+        #splash-screen.cosmic-background::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+                        rgba(106, 13, 173, 0.15) 0%, /* rypdAccentPrimaryFrom with opacity */
+                        rgba(0, 255, 255, 0.1) 30%,  /* rypdAccentPrimaryTo with opacity */
+                        rgba(26, 26, 46, 0.8) 70%); /* Fade to rypdBlue */
+            animation: cosmicPulse 15s infinite alternate;
+            background-size: 200% 200%;
+            background-position: center center;
+            z-index: 0; /* Behind particles and content */
+        }
+        @keyframes cosmicPulse {
+            0% { background-size: 200% 200%; background-position: 40% 40%; }
+            50% { background-size: 220% 220%; background-position: 60% 60%; }
+            100% { background-size: 200% 200%; background-position: 40% 40%; }
+        }
+
+        /* Starlight/Cosmic Dust (multiple layers for depth) */
+        #splash-screen.cosmic-background::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            box-shadow:
+                /* Layer 1: Small, fast moving stars */
+                0 0 0 1px rgba(255, 255, 255, 0.8),
+                100vw 100vh 0 1px rgba(255, 255, 255, 0.8),
+                /* Layer 2: Medium, slower stars */
+                0 0 0 2px rgba(255, 255, 255, 0.6),
+                -50vw -50vh 0 2px rgba(255, 255, 255, 0.6),
+                /* Layer 3: Large, slowest stars */
+                0 0 0 3px rgba(255, 255, 255, 0.4),
+                70vw -30vh 0 3px rgba(255, 255, 255, 0.4);
+            animation: starlight 100s linear infinite;
+            z-index: 0; /* Behind content */
+        }
+        @keyframes starlight {
+            from { transform: translate(0, 0); }
+            to { transform: translate(-100vw, -100vh); }
+        }
+
+
+        /* Page transition animations */
+        .page-exit-animation {
+            animation: pageExit 0.3s ease-out forwards;
+        }
+        @keyframes pageExit {
+            0% { opacity: 1; transform: translateX(0); }
+            100% { opacity: 0; transform: translateX(-20px); } /* Slide left out */
+        }
+
+        .page-enter-animation {
+            animation: pageEnter 0.3s ease-out forwards;
+            opacity: 0;
+            transform: translateX(20px); /* Start from right */
+        }
+        @keyframes pageEnter {
+            0% { opacity: 0; transform: translateX(20px); }
+            100% { opacity: 1; transform: translateX(0); }
+        }
+
+        /* AI Chat specific background animation */
+        .ai-chat-background {
+            background: radial-gradient(circle at center,
+                        rgba(0, 255, 255, 0.05) 0%, /* Cyan with opacity */
+                        rgba(128, 0, 128, 0.05) 30%, /* Purple with opacity */
+                        var(--tw-colors-rypdBlue) 70%); /* Fade to deep blue */
+            animation: aiRadialPulse 15s infinite alternate;
+            background-size: 200% 200%;
+            background-position: center center;
+        }
+
+        @keyframes aiRadialPulse {
+            0% { background-size: 200% 200%; background-position: 50% 50%; }
+            50% { background-size: 210% 210%; background-position: 45% 55%; }
+            100% { background-size: 200% 200%; background-position: 50% 50%; }
+        }
+
+        /* Typing indicator dots animation */
+        .typing-indicator span {
+            animation: blink 1s infinite;
+        }
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 1; }
+        }
+
+        /* Reed Richards (Mr. Fantastic) stretch effect */
+        .stretch-on-focus:focus {
+            animation: stretchInput 0.3s ease-out forwards;
+        }
+        @keyframes stretchInput {
+            0% { transform: scaleY(1); }
+            50% { transform: scaleY(1.02); } /* Reduced stretch for subtlety */
+            100% { transform: scaleY(1); }
+        }
+
+        /* Sue Storm (Invisible Woman) shimmer effect */
+        .shimmer-on-hover {
+            position: relative;
+            overflow: hidden;
+        }
+        .shimmer-on-hover::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: transform 0.5s ease-out;
+            opacity: 0;
+            pointer-events: none; /* Allow clicks through particles */
+        }
+        .shimmer-on-hover:hover::before {
+            transform: translateX(200%);
+            opacity: 1;
+        }
+
+        /* Invisible Shield Icon (Sue Storm Easter Egg) */
+        .invisible-shield-icon {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 24px;
+            height: 24px;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            pointer-events: none; /* Don't block clicks on post */
+            color: rgba(255, 255, 255, 0.6); /* Subtle white */
+            z-index: 10;
+        }
+        .shimmer-on-hover:hover .invisible-shield-icon {
+            opacity: 1;
+        }
+
+
+        /* Johnny Storm (Human Torch) glow effect */
+        .fiery-glow-on-hover:hover {
+            box-shadow: 0 0 15px 5px rgba(255, 165, 0, 0.6), 0 0 30px 10px rgba(255, 69, 0, 0.4);
+            transition: box-shadow 0.3s ease-in-out;
+        }
+        .fiery-glow-on-hover {
+            transition: box-shadow 0.3s ease-in-out; /* Ensure smooth exit */
+        }
+
+        /* Ben Grimm (The Thing) impact effect */
+        .impact-on-click:active {
+            transform: scale(0.98);
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            transition: all 0.1s ease-out;
+        }
+        .impact-on-click {
+            transition: all 0.1s ease-out;
+        }
+
+        /* Clobberin' Time Easter Egg */
+        #clobberin-time-msg {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--tw-colors-rypdAccentOrange); /* OrangeRed */
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            z-index: 100;
+            pointer-events: none;
+        }
+        #clobberin-time-msg.show {
+            opacity: 1;
+        }
+
+    </style>
+</head>
+<body class="min-h-screen bg-rypdBlue text-rypdWhite flex flex-col items-center p-4">
+
+    <!-- Splash Screen: The first thing the user sees -->
+    <div id="splash-screen" class="fixed inset-0 bg-rypdBlue flex flex-col items-center justify-center z-50 cosmic-background">
+        <!-- Main Splash Content -->
+        <div class="relative z-10 flex flex-col items-center">
+            <h1 class="text-7xl font-orbitron font-bold bg-gradient-to-r from-rypdAccentPrimaryFrom to-rypdAccentPrimaryTo text-transparent bg-clip-text mb-8 animate-pulse splash-title-enter">Rypd</h1>
+            <button id="continue-app-btn" class="bg-gradient-to-r from-rypdAccentPrimaryFrom to-rypdAccentPrimaryTo text-rypdWhite py-3 px-8 rounded-xl font-semibold text-lg shadow-lg hover:from-purple-700 hover:to-blue-600 transition-all duration-300 transform hover:scale-105 splash-button-enter">
+                Begin Mission
+            </button>
+        </div>
+    </div>
+
+    <!-- Message Display Area: For temporary notifications -->
+    <div id="message-display" class="fixed top-4 left-1/2 -translate-x-1/2 bg-rypdMidBlue text-rypdWhite px-4 py-2 rounded-lg shadow-lg z-50 opacity-0 transition-opacity duration-300">
+        <!-- Messages will appear here -->
+    </div>
+
+    <!-- Clobberin' Time Easter Egg Message -->
+    <div id="clobberin-time-msg" class="hidden">It's Clobberin' Time!</div>
+
+    <!-- Main App Content Area: Dynamically loaded page content -->
+    <div id="content-area" class="w-full max-w-2xl bg-rypdDarkBlue text-rypdWhite shadow-md rounded-xl p-4 mb-20 flex-grow hidden">
+        <!-- Page content will be dynamically loaded here by JavaScript -->
+        <h2 class="text-2xl font-orbitron font-semibold text-rypdWhite mb-6 text-center">Initializing...</h2>
+    </div>
+
+    <!-- Navigation Bar: Fixed at the bottom for easy access -->
+    <nav id="nav-bar" class="fixed bottom-0 left-0 right-0 w-full bg-rypdDarkBlue shadow-lg rounded-t-xl p-4 flex justify-around items-center z-40 hidden">
+        <!-- Feed Button -->
+        <button id="nav-feed" class="flex flex-col items-center px-4 py-2 rounded-md font-medium text-rypdLightGray hover:bg-rypdBlue transition-colors duration-200">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+            <span class="text-xs mt-1">Feed</span>
+        </button>
+        <!-- Create Post Button -->
+        <button id="nav-create" class="flex flex-col items-center px-4 py-2 rounded-md font-medium text-rypdLightGray hover:bg-rypdBlue transition-colors duration-200">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/>
+            </svg>
+            <span class="text-xs mt-1">Create</span>
+        </button>
+        <!-- Profile Button -->
+        <button id="nav-profile" class="flex flex-col items-center px-4 py-2 rounded-md font-medium text-rypdLightGray hover:bg-rypdBlue transition-colors duration-200">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+            <span class="text-xs mt-1">Profile</span>
+        </button>
+        <!-- Rypd AI Button -->
+        <button id="nav-ai" class="flex flex-col items-center px-4 py-2 rounded-md font-medium text-rypdLightGray hover:bg-rypdBlue transition-colors duration-200 fiery-glow-on-hover">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 8V4H8"/><path d="M22 17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3"/><path d="M6 15h2"/><path d="M10 15h2"/><path d="M14 15h2"/>
+            </svg>
+            <span class="text-xs mt-1">Rypd AI</span>
+        </button>
+        <!-- Challenges Button -->
+        <button id="nav-challenges" class="flex flex-col items-center px-4 py-2 rounded-md font-medium text-rypdLightGray hover:bg-rypdBlue transition-colors duration-200">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            <span class="text-xs mt-1">Challenges</span>
+        </button>
+        <!-- Messages Button -->
+        <button id="nav-messages" class="flex flex-col items-center px-4 py-2 rounded-md font-medium text-rypdLightGray hover:bg-rypdBlue transition-colors duration-200">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span class="text-xs mt-1">Messages</span>
+        </button>
+        <!-- Studies Button -->
+        <button id="nav-studies" class="flex flex-col items-center px-4 py-2 rounded-md font-medium text-rypdLightGray hover:bg-rypdBlue transition-colors duration-200">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2 0 0 1 0-5H20"/>
+            </svg>
+            <span class="text-xs mt-1">Studies</span>
+        </button>
+        <!-- Workout Plans Button -->
+        <button id="nav-workouts" class="flex flex-col items-center px-4 py-2 rounded-md font-medium text-rypdLightGray hover:bg-rypdBlue transition-colors duration-200">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 15v-3a3 3 0 0 1 6 0v3"/><path d="M18 15v-3a3 3 0 0 0-6 0v3"/><path d="M12 9V7"/><path d="M12 21v-2"/><path d="M6 21h12"/><path d="M12 7H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6"/>
+            </svg>
+            <span class="text-xs mt-1">Workouts</span>
+        </button>
+        <!-- Nutrition Recipes Button -->
+        <button id="nav-recipes" class="flex flex-col items-center px-4 py-2 rounded-md font-medium text-rypdLightGray hover:bg-rypdBlue transition-colors duration-200">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 2H9a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h2"/><path d="M13 22h2a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/><path d="M13 2v20"/><path d="M7 18h6"/><path d="M7 6h6"/>
+            </svg>
+            <span class="text-xs mt-1">Recipes</span>
+        </button>
+    </nav>
+
+    <!-- Firebase SDK Imports (type="module" is crucial for ES6 imports) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, arrayUnion, arrayRemove, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables for Firebase instances (declared in window scope for accessibility)
+        window.app = null;
+        window.db = null;
+        window.auth = null;
+        window.userId = null;
+        window.isAuthReady = false;
+
+        // --- DEMO DATA (Hardcoded for demonstration purposes) ---
+        // Function to generate random avatar colors
+        const getRandomAvatarColor = () => {
+            const colors = ['#00FFFF', '#FF00FF', '#32CD32', '#FFD700', '#FF4500']; // Cyan, Magenta, LimeGreen, Gold, OrangeRed
+            return colors[Math.floor(Math.random() * colors.length)];
+        };
+
+        let demoPosts = [
+            {
+                id: 'post1',
+                userId: 'fitness_fanatic_789',
+                content: "Crushed my leg day PR! 🏋️‍♀️ Feeling stronger every session. Consistency is key!",
+                imageUrl: "https://placehold.co/600x400/00FFFF/1A1A2E?text=Leg+Day+PR", // Cyan on rypdBlue
+                timestamp: new Date(Date.now() - 7200000), // 2 hours ago
+                likes: ['demo_user_123'], // Array of user IDs who liked (demo only)
+                comments: [
+                    { userId: 'gym_buddy_007', text: 'Awesome work! What was your PR on?' },
+                    { userId: 'strength_seeker', text: 'Inspiring! Keep it up!' }
+                ],
+                postType: 'Workout Progress',
+                mood: 'Pumped',
+                avatarColor: getRandomAvatarColor()
+            },
+            {
+                id: 'post2',
+                userId: 'healthy_eats_gal',
+                content: "Meal prep Sunday success! 🥦🥕 Getting those greens in. Fueling my body right.",
+                imageUrl: "https://placehold.co/600x400/32CD32/1A1A2E?text=Meal+Prep", // Lime Green on rypdBlue
+                timestamp: new Date(Date.now() - 86400000), // 1 day ago
+                likes: [],
+                comments: [
+                    { userId: 'nutrition_nerd', text: 'Looks delicious! What recipe did you use?' }
+                ],
+                postType: 'Nutrition Update',
+                mood: 'Achieved',
+                avatarColor: getRandomAvatarColor()
+            },
+            {
+                id: 'post3',
+                userId: 'cardio_queen_111',
+                content: "Just finished a challenging 10k run! 🏃‍♀️💨 Feeling invigorated. Who else loves morning cardio?",
+                imageUrl: "",
+                timestamp: new Date(Date.now() - 172800000), // 2 days ago
+                likes: ['demo_user_123', 'gym_buddy_007'],
+                comments: [],
+                postType: 'General Update',
+                mood: 'Pumped',
+                avatarColor: getRandomAvatarColor()
+            }
+        ];
+
+        let demoUserProfile = {
+            userId: 'loading...', // Will be updated by Firebase auth
+            profilePic: 'https://placehold.co/100x100/00FFFF/1A1A2E?text=User', // Cyan on rypdBlue
+            bio: 'Fitness enthusiast | On a journey to strength and health!',
+            goals: 'Gain 10lbs muscle, run a 5k',
+            currentWeight: '75 kg',
+            height: '175 cm',
+            badges: [
+                { name: 'First Workout', icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-rypdAccentPrimaryTo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17H2a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h20a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2z"/><path d="M7 10v4"/><path d="M12 10v4"/><path d="M17 10v4"/></svg>' },
+                { name: '7-Day Streak', icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-rypdAccentGreen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H7l5 5-5 5h10l-5 5"/><path d="m12 19 5-5-5-5-5 5 5 5z"/></svg>' },
+                { name: 'PR Breaker', icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-rypdAccentMagenta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 18V12m0 0 4 4m-4-4-4 4"/></svg>' }
+            ],
+            weightHistory: [ // For progress chart
+                { date: '2025-01-01', weight: 80 },
+                { date: '2025-02-01', weight: 79 },
+                { date: '2025-03-01', weight: 78 },
+                { date: '2025-04-01', weight: 77 },
+                { date: '2025-05-01', weight: 76 },
+                { date: '2025-06-01', weight: 75 },
+                { date: '2025-07-01', weight: 74.5 }
+            ]
+        };
+
+        let demoWeightLogs = [ // This is for the list view, separate from chart data
+            { date: 'July 20, 2025', weight: '74.5 kg' },
+            { date: 'July 13, 2025', weight: '74 kg' },
+            { date: 'July 06, 2025', weight: '73.8 kg' }
+        ];
+
+        let demoWorkouts = [
+            {
+                id: 'workout1',
+                name: 'Cosmic Full Body',
+                exercises: [
+                    { name: 'Barbell Squats', sets: '3', reps: '8-10', notes: 'Focus on depth' },
+                    { name: 'Bench Press', sets: '3', reps: '8-10', notes: 'Control negative' },
+                    { name: 'Bent-Over Rows', sets: '3', reps: '8-10', notes: 'Squeeze shoulder blades' },
+                    { name: 'Overhead Press', sets: '3', reps: '8-10', notes: 'Full lockout' },
+                    { name: 'Plank', sets: '3', reps: '60s hold', notes: 'Keep core tight' }
+                ]
+            },
+            {
+                id: 'workout2',
+                name: 'Power Surge Legs',
+                exercises: [
+                    { name: 'Deadlifts', sets: '3', reps: '5-8', notes: 'Hinge at hips' },
+                    { name: 'Leg Press', sets: '3', reps: '10-12', notes: 'Push through heels' },
+                    { name: 'Leg Curls', sets: '3', reps: '12-15', notes: 'Slow and controlled' },
+                    { name: 'Calf Raises', sets: '4', reps: '15-20', notes: 'Full stretch and squeeze' }
+                ]
+            },
+            {
+                id: 'workout3',
+                name: 'Invisible Core',
+                exercises: [
+                    { name: 'Crunches', sets: '3', reps: '15-20', notes: 'Engage abs' },
+                    { name: 'Leg Raises', sets: '3', reps: '15-20', notes: 'Keep back flat' },
+                    { name: 'Russian Twists', sets: '3', reps: '20-30', notes: 'Twist from torso' }
+                ]
+            }
+        ];
+
+        let demoChallenges = [
+            {
+                id: 'challenge1',
+                title: '30-Day Squat Challenge',
+                description: 'Complete 100 squats daily for 30 days!',
+                participants: 500
+            },
+            {
+                id: 'challenge2',
+                title: 'Weekly Step Goal (100k Steps)',
+                description: 'Hit 100,000 steps in a single week!',
+                participants: 1200
+            },
+            {
+                id: 'challenge3',
+                title: 'Plank Hold Master',
+                description: 'Improve your plank hold time by 30 seconds over 2 weeks!',
+                participants: 300
+            }
+        ];
+
+        let demoMessages = [
+            { from: 'gym_buddy_007', text: 'Hey, great progress on your PR! When are you hitting the gym next?' },
+            { from: 'You', text: 'Thanks! Planning for Tuesday evening. Want to join?' },
+            { from: 'fitness_fanatic_789', text: 'Just saw your meal prep post, looks amazing! Need to try that recipe.' }
+        ];
+
+        let demoFoodLog = [
+            { name: 'Chicken Breast (150g)', calories: 240, protein: 45, carbs: 0, fats: 6 },
+            { name: 'Brown Rice (1 cup cooked)', calories: 215, protein: 5, carbs: 45, fats: 2 },
+            { name: 'Broccoli (100g)', calories: 34, protein: 2, carbs: 7, fats: 0 },
+            { name: 'Protein Shake', calories: 120, protein: 25, carbs: 4, fats: 1 }
+        ];
+
+        // New: Demo chat data for Instagram/WhatsApp style messages
+        let demoChats = [
+            {
+                id: 'chat1',
+                name: 'Gym Buddy',
+                avatar: 'https://placehold.co/50x50/00FFFF/1A1A2E?text=GB', // Cyan on rypdBlue
+                lastMessage: 'Awesome PR! See you Tuesday?',
+                messages: [
+                    { sender: 'Gym Buddy', text: 'Hey, great progress on your PR! When are you hitting the gym next?', time: '10:30 AM' },
+                    { sender: 'You', text: 'Thanks! Planning for Tuesday evening. Want to join?', time: '10:35 AM' },
+                    { sender: 'Gym Buddy', text: 'Definitely! What time works for you?', time: '10:40 AM' },
+                    { sender: 'You', text: 'Around 6 PM?', time: '10:45 AM' }
+                ]
+            },
+            {
+                id: 'chat2',
+                name: 'Nutrition Tips',
+                avatar: 'https://placehold.co/50x50/32CD32/FFFFFF?text=NT',
+                lastMessage: 'Your meal prep looks great!',
+                messages: [
+                    { sender: 'Nutrition Tips', text: 'Your meal prep looks great! What recipe did you use for the chicken?', time: 'Yesterday' },
+                    { sender: 'You', text: 'It\'s a simple lemon-herb marinade! Super easy.', time: 'Yesterday' }
+                ]
+            },
+            {
+                id: 'chat3',
+                name: 'Challenge Crew',
+                avatar: 'https://placehold.co/50x50/FF00FF/FFFFFF?text=CC',
+                lastMessage: 'Did anyone hit their squat goal today?',
+                messages: [
+                    { sender: 'Challenge Crew', text: 'Morning everyone! Did anyone hit their squat goal today?', time: '8:00 AM' },
+                    { sender: 'You', text: 'I did! Feeling the burn!', time: '8:05 AM' },
+                    { sender: 'Challenge Crew', text: 'Awesome! Keep pushing!', time: '8:10 AM' }
+                ]
+            },
+            // Fantastic Four Characters as chat contacts
+            {
+                id: 'chat_reed',
+                name: 'Reed Richards',
+                avatar: 'https://placehold.co/50x50/6A0DAD/FFFFFF?text=RR', // Purple for Reed
+                lastMessage: 'Analyzing optimal stretching routines...',
+                messages: [
+                    { sender: 'Reed Richards', text: 'Greetings. I\'ve been analyzing the optimal biomechanics for your current training phase. Fascinating.', time: '11:00 AM' },
+                    { sender: 'You', text: 'Hey Reed! Any insights on improving my deadlift form?', time: '11:05 AM' },
+                    { sender: 'Reed Richards', text: 'Indeed. Focus on hip hinge initiation and maintaining a neutral spine. The kinetic chain is paramount.', time: '11:10 AM' }
+                ]
+            },
+            {
+                id: 'chat_sue',
+                name: 'Sue Storm',
+                avatar: 'https://placehold.co/50x50/00FFFF/1A1A2E?text=SS', // Cyan for Sue
+                lastMessage: 'Just finished an invisible cardio session!',
+                messages: [
+                    { sender: 'Sue Storm', text: 'Had a great, totally invisible cardio session today! Feeling energized.', time: '09:00 AM' },
+                    { sender: 'You', text: 'Nice! How do you stay so consistent?', time: '09:05 AM' },
+                    { sender: 'Sue Storm', text: 'Discipline and a clear vision of my goals. And sometimes, a little protective barrier helps!', time: '09:10 AM' }
+                ]
+            },
+            {
+                id: 'chat_johnny',
+                name: 'Johnny Storm',
+                avatar: 'https://placehold.co/50x50/FF4500/FFFFFF?text=JS', // Orange for Johnny
+                lastMessage: 'Flame On! Just torched my last workout.',
+                messages: [
+                    { sender: 'Johnny Storm', text: 'Flame On! Just torched my last workout. Feeling hot!', time: '02:00 PM' },
+                    { sender: 'You', text: 'Haha, awesome! What did you hit today?', time: '02:05 PM' },
+                    { sender: 'Johnny Storm', text: 'Shoulders and arms! The pump was insane. You gotta feel the burn!', time: '02:10 PM' }
+                ]
+            },
+            {
+                id: 'chat_ben',
+                name: 'Ben Grimm',
+                avatar: 'https://placehold.co/50x50/8B4513/FFFFFF?text=BG', // Saddle Brown for Ben
+                lastMessage: 'Time for some clobberin\'... the weights!',
+                messages: [
+                    { sender: 'Ben Grimm', text: 'Alright, it\'s clobberin\' time... for these weights! Just hit a new squat PR.', time: '04:00 PM' },
+                    { sender: 'You', text: 'Nice, Ben! What was the weight?', time: '04:05 PM' },
+                    { sender: 'Ben Grimm', text: 'Heavy enough to make a rock sweat! Keep pushin\' yourself, pal.', time: '04:10 PM' }
+                ]
+            },
+            { // Rypd AI chat contact
+                id: 'chat_ai',
+                name: 'Rypd AI',
+                avatar: 'https://placehold.co/50x50/6A0DAD/FFFFFF?text=AI', // Purple avatar for AI
+                lastMessage: 'How can I assist you today?',
+                messages: [
+                    { sender: 'Rypd AI', text: 'Hello! I am Rypd AI. How can I assist you with your fitness journey today?', time: 'Just now' }
+                ],
+                isAI: true // Flag to identify AI chat
+            }
+        ];
+
+        // New: Demo data for certified studies
+        const demoStudies = [
+            {
+                title: "Resistance Training for Bone Density",
+                summary: "Meta-analysis: High-intensity RT (≥70% 1RM), 3x/week for ≥48 weeks, significantly improves bone mineral density (BMD) in postmenopausal women.",
+                source: "ResearchGate (Meta-analysis)",
+                url: "https://www.researchgate.net/publication/392127893_Optimal_resistance_training_parameters_for_improving_bone_mineral_density_in_postmenopausal_women_a_systematic_review_and_meta-analysis",
+                icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-rypdAccentPrimaryTo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>'
+            },
+            {
+                title: "Protein Intake for Muscle Hypertrophy",
+                summary: "Systematic review: Increased daily protein intake (≥1.6 g/kg/day for younger adults) leads to small but significant gains in lean body mass and lower body strength during resistance training.",
+                source: "PMC (PubMed Central)",
+                url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8978023/",
+                icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-rypdAccentGreen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>'
+            },
+            {
+                title: "Sleep Deprivation & Athletic Performance",
+                summary: "Systematic review: Sleep deprivation significantly impairs athletic performance across various domains (endurance, power, speed) and increases perceived exertion.",
+                source: "ResearchGate (Systematic Review)",
+                url: "https://www.researchgate.net/publication/390412065_Effects_of_sleep_deprivation_on_sports_performance_and_perceived_exertion_in_athletes_and_non-athletes_a_systematic_review_and_meta-analysis",
+                icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-rypdAccentMagenta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>'
+            },
+            {
+                title: "Mediterranean Diet & Cardiovascular Health",
+                summary: "Systematic review: Mediterranean and low-fat dietary programs reduce all-cause mortality and non-fatal myocardial infarction in patients with increased cardiovascular risk.",
+                source: "The BMJ (Systematic Review)",
+                url: "https://www.bmj.com/content/380/bmj-2022-072003",
+                icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-rypdAccentGold" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 0 0 20"/></svg>'
+            }
+        ];
+
+        // New: Demo data for nutrition recipes
+        const demoRecipes = [
+            {
+                id: 'recipe1',
+                name: 'High-Protein Cosmic Chicken Stir-fry',
+                description: 'Quick and easy stir-fry packed with protein and veggies, for cosmic energy!',
+                imageUrl: 'https://placehold.co/600x400/32CD32/1A1A2E?text=Cosmic+Stir-fry',
+                macros: 'P:40g C:30g F:15g',
+                ingredients: ['150g Chicken Breast', '1 cup Mixed Veggies', '1/2 cup Brown Rice', 'Soy Sauce', 'Ginger', 'Garlic'],
+                instructions: '1. Cook rice. 2. Stir-fry chicken. 3. Add veggies, sauce. Serve.'
+            },
+            {
+                id: 'recipe2',
+                name: 'Galactic Berry Protein Smoothie',
+                description: 'Refreshing smoothie perfect for post-workout recovery, powered by the stars!',
+                imageUrl: 'https://placehold.co/600x400/00FFFF/1A1A2E?text=Galactic+Smoothie',
+                macros: 'P:25g C:40g F:5g',
+                ingredients: ['1 scoop Protein Powder', '1 cup Mixed Berries', '1/2 Banana', '1 cup Almond Milk'],
+                instructions: '1. Blend all ingredients until smooth.'
+            },
+            {
+                id: 'recipe3',
+                name: 'Thing\'s Rock-Solid Chili',
+                description: 'A hearty chili to build a rock-solid physique, strong enough for Clobberin\' Time!',
+                imageUrl: 'https://placehold.co/600x400/FF4500/FFFFFF?text=Rock-Solid+Chili',
+                macros: 'P:35g C:50g F:10g',
+                ingredients: ['Ground Beef', 'Kidney Beans', 'Tomatoes', 'Onion', 'Spices'],
+                instructions: '1. Brown meat. 2. Add ingredients, simmer. 3. Enjoy!'
+            }
+        ];
+
+
+        // UI Element References
+        const splashScreen = document.getElementById('splash-screen');
+        const continueAppBtn = document.getElementById('continue-app-btn');
+        const contentArea = document.getElementById('content-area');
+        const navBar = document.getElementById('nav-bar');
+        const navButtons = {
+            feed: document.getElementById('nav-feed'),
+            create: document.getElementById('nav-create'),
+            profile: document.getElementById('nav-profile'),
+            ai: document.getElementById('nav-ai'),
+            challenges: document.getElementById('nav-challenges'),
+            messages: document.getElementById('nav-messages'),
+            studies: document.getElementById('nav-studies'),
+            workouts: document.getElementById('nav-workouts'),
+            recipes: document.getElementById('nav-recipes')
+        };
+        const messageDisplay = document.getElementById('message-display');
+        const clobberinTimeMsg = document.getElementById('clobberin-time-msg'); // Reference for The Thing Easter egg
+
+        let currentPage = 'feed'; // Initial page
+        let clobberinTimeClickCount = 0; // For The Thing Easter egg
+
+        // Function to display temporary messages
+        function showMessage(msg, duration = 3000) {
+            messageDisplay.textContent = msg;
+            messageDisplay.classList.remove('opacity-0', 'fade-out');
+            messageDisplay.classList.add('opacity-100', 'fade-in');
+
+            setTimeout(() => {
+                messageDisplay.classList.remove('opacity-100', 'fade-in');
+                messageDisplay.classList.add('opacity-0', 'fade-out');
+            }, duration);
+        }
+
+        // Function to render different pages with transitions
+        function showPage(pageName) {
+            // Only apply exit animation if content is currently visible
+            if (!contentArea.classList.contains('hidden') && contentArea.innerHTML !== '') {
+                contentArea.classList.add('page-exit-animation');
+                navBar.classList.add('page-exit-animation'); // Animate nav bar too
+            }
+
+            setTimeout(() => {
+                currentPage = pageName;
+                contentArea.innerHTML = ''; // Clear current content
+
+                // Remove exit animations and prepare for entry
+                contentArea.classList.remove('page-exit-animation', 'app-enter-animation');
+                navBar.classList.remove('page-exit-animation', 'app-enter-animation');
+                contentArea.classList.add('hidden'); // Hide temporarily during content swap
+                navBar.classList.add('hidden');
+
+                // Update active navigation button
+                Object.keys(navButtons).forEach(key => {
+                    if (key === pageName) {
+                        navButtons[key].classList.add('bg-rypdDarkBlue', 'text-rypdAccentPrimaryTo', 'shadow-lg'); // Active: Dark background, Cyan text
+                        navButtons[key].classList.remove('text-rypdLightGray', 'hover:bg-rypdBlue'); // Inactive: Light gray text, dark hover
+                    } else {
+                        navButtons[key].classList.remove('bg-rypdDarkBlue', 'text-rypdAccentPrimaryTo', 'shadow-lg');
+                        navButtons[key].classList.add('text-rypdLightGray', 'hover:bg-rypdBlue');
+                    }
+                });
+
+                // Render new page content
+                switch (pageName) {
+                    case 'feed':
+                        renderFeedPage();
+                        break;
+                    case 'create':
+                        renderCreatePostPage();
+                        break;
+                    case 'profile':
+                        renderProfilePage();
+                        break;
+                    case 'ai':
+                        // Direct navigation to Rypd AI chat
+                        renderConversationPage('chat_ai');
+                        break;
+                    case 'challenges':
+                        renderChallengesPage();
+                        break;
+                    case 'messages':
+                        renderMessagesPage(); // Show chat list
+                        break;
+                    case 'studies':
+                        renderStudiesPage();
+                        break;
+                    case 'workouts':
+                        renderWorkoutPlansPage();
+                        break;
+                    case 'recipes':
+                        renderNutritionRecipesPage();
+                        break;
+                    default:
+                        renderFeedPage();
+                }
+
+                // Apply entry animation
+                contentArea.classList.remove('hidden');
+                navBar.classList.remove('hidden');
+                contentArea.classList.add('app-enter-animation');
+                navBar.classList.add('app-enter-animation');
+
+            }, 300); // This timeout should match the page-exit-animation duration
+        }
+
+
+        // Helper to format timestamp
+        function formatTimestamp(date) {
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMinutes = Math.round(diffMs / (1000 * 60));
+            const diffHours = Math.round(diffMs / (1000 * 60 * 60));
+            const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+            if (diffMinutes < 1) return 'Just now';
+            if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
+            if (diffHours < 24) return `${diffHours} hours ago`;
+            if (diffDays < 7) return `${diffDays} days ago`;
+            return date.toLocaleDateString();
+        }
+
+        // --- Page Rendering Functions ---
+
+        function renderFeedPage() {
+            contentArea.innerHTML = `
+                <h2 class="text-2xl font-orbitron font-semibold text-rypdWhite mb-6 text-center">Cosmic Feed</h2>
+                <div class="bg-rypdDarkBlue rounded-xl shadow-md p-4 mb-6">
+                    <h3 class="text-xl font-orbitron font-semibold text-rypdWhite mb-3">Dimensional Highlights ✨</h3>
+                    <div class="flex items-center space-x-3 overflow-x-auto pb-2">
+                        <div class="flex-shrink-0 text-center">
+                            <div class="w-16 h-16 rounded-full bg-gradient-to-r from-purple-500 to-red-500 flex items-center justify-center text-rypdWhite text-xs font-bold mb-1 shimmer-on-hover">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                            </div>
+                            <p class="text-xs text-rypdLightGray">#PRs</p>
+                        </div>
+                        <div class="flex-shrink-0 text-center">
+                            <div class="w-16 h-16 rounded-full bg-gradient-to-r from-green-500 to-blue-500 flex items-center justify-center text-rypdWhite text-xs font-bold mb-1 shimmer-on-hover">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H7l5 5-5 5h10l-5 5"/><path d="m12 19 5-5-5-5-5 5 5 5z"/></svg>
+                            </div>
+                            <p class="text-xs text-rypdLightGray">#Streaks</p>
+                        </div>
+                        <div class="flex-shrink-0 text-center">
+                            <div class="w-16 h-16 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center text-rypdWhite text-xs font-bold mb-1 shimmer-on-hover">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                            </div>
+                            <p class="text-xs text-rypdLightGray">#Motivation</p>
+                        </div>
+                        <div class="flex-shrink-0 text-center">
+                            <div class="w-16 h-16 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center text-rypdWhite text-xs font-bold mb-1 shimmer-on-hover">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                            </div>
+                            <p class="text-xs text-rypdLightGray">#Community</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="posts-container" class="space-y-6"></div>
+            `;
+            const postsContainer = document.getElementById('posts-container');
+
+            demoPosts.forEach(post => {
+                const postElement = document.createElement('div');
+                postElement.className = 'bg-rypdDarkBlue rounded-xl shadow-md p-6 text-rypdWhite shimmer-on-hover'; // Darker card background, light text, Sue Storm shimmer
+                postElement.innerHTML = `
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 rounded-full flex items-center justify-center text-rypdWhite font-bold text-lg mr-3" style="background-color: ${post.avatarColor};">
+                                ${post.userId.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                                <p class="font-semibold text-rypdWhite">${post.userId}</p>
+                                <p class="text-sm text-rypdLightGray">${formatTimestamp(post.timestamp)}</p>
+                            </div>
+                        </div>
+                        <button class="bg-gradient-to-r from-rypdAccentPrimaryFrom to-rypdAccentPrimaryTo text-rypdWhite text-xs px-3 py-1 rounded-full hover:from-purple-700 hover:to-blue-600 transition-colors duration-200 follow-button">Follow</button>
+                    </div>
+                    <p class="text-rypdWhite mb-4">${post.content}</p>
+                    ${post.imageUrl ? `<img src="${post.imageUrl}" alt="Progress Image" class="w-full rounded-lg mb-4 object-cover max-h-80">` : ''}
+                    <div class="flex justify-between items-center text-sm text-rypdLightGray mb-4">
+                        <span class="px-2 py-1 bg-rypdBlue rounded-md">${post.postType}</span>
+                        <span class="px-2 py-1 bg-rypdBlue rounded-md">Mood: ${post.mood}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-rypdLightGray">
+                        <button class="flex items-center space-x-1 px-3 py-1 rounded-full hover:bg-rypdBlue transition-colors duration-200 like-button" data-post-id="${post.id}">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ${post.likes.includes(window.userId) ? 'text-rypdAccentRed fill-current' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+                            </svg>
+                            <span class="like-count">${post.likes.length}</span>
+                        </button>
+                        <button class="flex items-center space-x-1 px-3 py-1 rounded-full hover:bg-rypdBlue transition-colors duration-200 comment-button" data-post-id="${post.id}">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 11.5a2.5 2.5 0 0 0-5 0v2.5c0 .6-.4 1-1 1H9c-.6 0-1-.4-1-1v-2.5a2.5 2.5 0 0 0-5 0v2.5c0 .6-.4 1-1 1H1c-.6 0-1-.4-1-1V9a2 2 0 0 1 2-2h3c.6 0 1-.4 1-1V3.5A2.5 2.5 0 0 1 10.5 1h3A2.5 2.5 0 0 1 16 3.5V6c0 .6.4 1 1 1h3a2 2 0 0 1 2 2v2.5c0 .6-.4 1-1 1h-1c-.6 0-1-.4-1-1V11.5Z"/>
+                            </svg>
+                            <span>${post.comments.length}</span>
+                        </button>
+                    </div>
+                    <!-- Sue Storm Invisible Shield Easter Egg -->
+                    <svg class="invisible-shield-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 0 0 20"/>
+                    </svg>
+                    <div class="comments-section mt-4 hidden">
+                        <div class="space-y-2 mb-4">
+                            ${post.comments.map(comment => `
+                                <div class="bg-rypdBlue p-3 rounded-lg text-sm">
+                                    <span class="font-semibold text-rypdWhite">${comment.userId}:</span> ${comment.text}
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="flex">
+                            <input type="text" placeholder="Add a comment..." class="flex-grow p-2 border border-rypdMidBlue rounded-l-lg focus:outline-none focus:ring-2 focus:ring-rypdAccentPrimaryTo bg-rypdBlue text-rypdWhite">
+                            <button class="bg-gradient-to-r from-rypdAccentPrimaryFrom to-rypdAccentPrimaryTo text-rypdWhite px-4 py-2 rounded-r-lg hover:from-purple-700 hover:to-blue-600 transition-colors duration-200 add-comment-btn">Post</button>
+                        </div>
+                    </div>
+                `;
+                postsContainer.appendChild(postElement);
+            });
+
+            // Add event listeners for like and comment buttons
+            postsContainer.querySelectorAll('.like-button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const postId = event.currentTarget.dataset.postId;
+                    const post = demoPosts.find(p => p.id === postId);
+                    if (!post) return;
+
+                    const likeCountSpan = event.currentTarget.querySelector('.like-count');
+                    const heartIcon = event.currentTarget.querySelector('svg');
+
+                    if (post.likes.includes(window.userId)) {
+                        post.likes = post.likes.filter(id => id !== window.userId);
+                        heartIcon.classList.remove('text-rypdAccentRed', 'fill-current');
+                        showMessage("Post unliked! (Demo only)");
+                    } else {
+                        post.likes.push(window.userId);
+                        heartIcon.classList.add('text-rypdAccentRed', 'fill-current');
+                        event.currentTarget.classList.add('pulse-animation');
+                        event.currentTarget.addEventListener('animationend', () => {
+                            event.currentTarget.classList.remove('pulse-animation');
+                        }, { once: true });
+                        showMessage("Post liked! (Demo only)");
+                    }
+                    likeCountSpan.textContent = post.likes.length;
+                });
+            });
+
+            postsContainer.querySelectorAll('.comment-button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    // This selector targets the immediate parent with the correct background class
+                    const commentsSection = event.currentTarget.closest('.bg-rypdDarkBlue').querySelector('.comments-section');
+                    commentsSection.classList.toggle('hidden');
+                });
+            });
+
+            postsContainer.querySelectorAll('.add-comment-btn').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const input = event.currentTarget.previousElementSibling;
+                    if (input.value.trim()) {
+                        showMessage("Comment added! (Demo only, not saved)");
+                        input.value = ''; // Clear input
+                    }
+                });
+            });
+
+            postsContainer.querySelectorAll('.follow-button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const userIdToFollow = event.currentTarget.dataset.userId;
+                    showMessage(`Now following ${userIdToFollow}! (Demo only)`);
+                    event.currentTarget.textContent = 'Following';
+                    event.currentTarget.disabled = true;
+                    event.currentTarget.classList.remove('bg-rypdBrightBlue', 'text-rypdDeepBlack', 'hover:bg-rypdWhite');
+                    event.currentTarget.classList.add('bg-gray-600', 'cursor-not-allowed');
+                });
+            });
+        }
+
+        function renderCreatePostPage() {
+            contentArea.innerHTML = `
+                <h2 class="text-2xl font-orbitron font-semibold text-rypdWhite mb-6 text-center">Create New Post</h2>
+                <div class="bg-rypdDarkBlue rounded-xl shadow-md p-6 text-rypdWhite">
+                    <div class="mb-4">
+                        <label for="new-post-content" class="block text-rypdWhite text-sm font-bold mb-2">What's your progress today?</label>
+                        <textarea id="new-post-content" class="w-full p-3 border border-rypdMidBlue rounded-lg focus:outline-none focus:ring-2 focus:ring-rypdBrightBlue bg-rypdBlue text-rypdWhite h-28 resize-y stretch-on-focus" placeholder="Share your workout, achievement, or thoughts..."></textarea>
+                    </div>
+                    <div class="mb-4">
+                        <label for="new-post-image-url" class="block text-rypdWhite text-sm font-bold mb-2">Image URL (Optional)</label>
+                        <input type="text" id="new-post-image-url" class="w-full p-3 border border-rypdMidBlue rounded-lg focus:outline-none focus:ring-2 focus:ring-rypdBrightBlue bg-rypdBlue text-rypdWhite stretch-on-focus">
+                    </div>
+                    <div class="mb-4">
+                        <label for="post-type-select" class="block text-rypdWhite text-sm font-bold mb-2">Post Type</label>
+                        <select id="post-type-select" class="w-full p-3 border border-rypdMidBlue rounded-lg focus:outline-none focus:ring-2 focus:ring-rypdBrightBlue bg-rypdBlue text-rypdWhite">
+                            <option value="General Update">General Update</option>
+                            <option value="Workout Progress">Workout Progress</option>
+                            <option value="Nutrition Update">Nutrition Update</option>
+                            <option value="Achievement">Achievement</option>
+                        </select>
+                    </div>
+                    <div class="mb-6">
+                        <label for="mood-select" class="block text-rypdWhite text-sm font-bold mb-2">How are you feeling?</label>
+                        <select id="mood-select" class="w-full p-3 border border-rypdMidBlue rounded-lg focus:outline-none focus:ring-2 focus:ring-rypdBrightBlue bg-rypdBlue text-rypdWhite">
+                            <option value="Pumped">Pumped 💪</option>
+                            <option value="Achieved">Achieved ✨</option>
+                            <option value="Tired">Tired 😴</option>
+                            <option value="Motivated">Motivated 🔥</option>
+                            <option value="Normal">Normal 😊</option>
+                        </select>
+                    </div>
+                    <button id="share-post-btn" class="w-full bg-gradient-to-r from-rypdAccentPrimaryFrom to-rypdAccentPrimaryTo text-rypdWhite py-3 rounded-lg font-semibold text-lg shadow-lg hover:from-purple-700 hover:to-blue-600 transition-colors duration-300 fiery-glow-on-hover">Share Progress</button>
+                </div>
+            `;
+
+            document.getElementById('share-post-btn').addEventListener('click', () => {
+                const content = document.getElementById('new-post-content').value;
+                const imageUrl = document.getElementById('new-post-image-url').value;
+                const postType = document.getElementById('post-type-select').value;
+                const mood = document.getElementById('mood-select').value;
+
+                if (content.trim() || imageUrl.trim()) {
+                    showMessage("Post shared! (Demo only, not saved to database)");
+                    // Simulate adding to local array for immediate feedback, but it won't persist
+                    demoPosts.unshift({
+                        id: `post${Date.now()}`,
+                        userId: window.userId || 'demo_user',
+                        content: content,
+                        imageUrl: imageUrl,
+                        timestamp: new Date(),
+                        likes: [],
+                        comments: [],
+                        postType: postType,
+                        mood: mood,
+                        avatarColor: getRandomAvatarColor() // Assign a random color to new post's avatar
+                    });
+                    document.getElementById('new-post-content').value = '';
+                    document.getElementById('new-post-image-url').value = '';
+                    document.getElementById('post-type-select').value = 'General Update';
+                    document.getElementById('mood-select').value = 'Pumped';
+                    showPage('feed'); // Go back to feed after "posting"
+                } else {
+                    showMessage("Please add some content or an image URL.");
+                }
+            });
+        }
+
+        function renderProfilePage() {
+            // Function to calculate total macros for demoFoodLog
+            const calculateTotals = () => {
+                let totalCalories = 0;
+                let totalProtein = 0;
+                let totalCarbs = 0;
+                let totalFats = 0;
+                demoFoodLog.forEach(food => {
+                    totalCalories += food.calories;
+                    totalProtein += food.protein;
+                    totalCarbs += food.carbs;
+                    totalFats += food.fats;
+                });
+                return { totalCalories, totalProtein, totalCarbs, totalFats };
+            };
+
+            const { totalCalories, totalProtein, totalCarbs, totalFats } = calculateTotals();
+
+            contentArea.innerHTML = `
+                <h2 class="text-2xl font-orbitron font-semibold text-rypdWhite mb-6 text-center">Your Profile</h2>
+                <div class="bg-rypdDarkBlue rounded-xl shadow-md p-6 mb-6 text-center text-rypdWhite">
+                    <img id="profile-pic-display" src="${demoUserProfile.profilePic}" alt="Profile Picture" class="w-24 h-24 rounded-full mx-auto mb-4 object-cover border-4 border-rypdBrightBlue">
+                    <p class="text-xl font-bold text-rypdWhite mb-2">${window.userId || 'Loading User ID...'}</p>
+                    <p id="profile-bio-display" class="text-rypdLightGray mb-4">${demoUserProfile.bio}</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
+                        <div class="bg-rypdBlue p-4 rounded-lg">
+                            <p class="text-sm font-semibold text-rypdLightGray">Goals</p>
+                            <p id="profile-goals-display" class="text-rypdWhite">${demoUserProfile.goals}</p>
+                        </div>
+                        <div class="bg-rypdBlue p-4 rounded-lg">
+                            <p class="text-sm font-semibold text-rypdLightGray">Current Weight</p>
+                            <p id="profile-weight-display" class="text-rypdWhite">${demoUserProfile.currentWeight}</p>
+                        </div>
+                        <div class="bg-rypdBlue p-4 rounded-lg">
+                            <p class="text-sm font-semibold text-rypdLightGray">Height</p>
+                            <p id="profile-height-display" class="text-rypdWhite">${demoUserProfile.height}</p>
+                        </div>
+                    </div>
+                    <button id="edit-profile-btn" class="mt-6 bg-rypdBrightBlue text-rypdDeepBlack py-2 px-4 rounded-lg font-semibold hover:bg-rypdWhite transition-colors duration-300">Edit Profile</button>
+                </div>
+
+                <div class="bg-rypdDarkBlue rounded-xl shadow-md p-6 mb-6 text-rypdWhite">
+                    <h3 class="text-xl font-orbitron font-semibold text-rypdWhite mb-4">Weight Log</h3>
+                    <div id="weight-logs-container" class="space-y-2 mb-4">
+                        ${demoWeightLogs.map(log => `
+                            <div class="flex justify-between items-center bg-rypdBlue p-3 rounded-lg text-rypdWhite">
+                                <span>${log.date}</span>
+                                <span class="font-medium">${log.weight}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="number" id="new-weight-input" class="flex-grow p-3 border border-rypdMidBlue rounded-lg focus:outline-none focus:ring-2 focus:ring-rypdBrightBlue bg-rypdBlue text-rypdWhite" placeholder="Enter new weight (kg)">
+                        <button id="log-weight-btn" class="bg-rypdBrightBlue text-rypdDeepBlack px-5 py-3 rounded-lg font-semibold hover:bg-rypdWhite transition-colors duration-300">Log Weight</button>
+                    </div>
+                </div>
+
+                <div class="bg-rypdDarkBlue rounded-xl shadow-md p-6 mb-6 text-rypdWhite">
+                    <h3 class="text-xl font-orbitron font-semibold text-rypdWhite mb-4">Your Badges</h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                        ${demoUserProfile.badges.map(badge => `
+                            <div class="bg-rypdBlue p-4 rounded-lg flex flex-col items-center justify-center text-center">
+                                ${badge.icon}
+                                <p class="text-sm font-semibold mt-2 text-rypdWhite">${badge.name}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="bg-rypdDarkBlue rounded-xl shadow-md p-6 mb-6 text-rypdWhite">
+                    <h3 class="text-xl font-orbitron font-semibold text-rypdWhite mb-4">Progress Chart (Demo)</h3>
+                    <div class="bg-rypdBlue p-3 rounded-lg">
+                        <canvas id="progressChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-rypdDarkBlue rounded-xl shadow-md p-6 mb-6 text-rypdWhite">
+                    <h3 class="text-xl font-orbitron font-semibold text-rypdWhite mb-4">Log a Workout (Demo)</h3>
+                    <select id="workout-select" class="w-full p-3 border border-rypdMidBlue rounded-lg focus:outline-none focus:ring-2 focus:ring-rypdBrightBlue bg-rypdBlue text-rypdWhite mb-4">
+                        <option value="">Select a workout plan...</option>
+                        ${demoWorkouts.map(workout => `<option value="${workout.id}">${workout.name}</option>`).join('')}
+                    </select>
+                    <div id="selected-workout-details" class="space-y-2 mb-4 p-3 bg-rypdBlue rounded-lg hidden">
+                        <!-- Workout exercises will be displayed here -->
+                    </div>
+                    <button id="log-workout-btn" class="w-full bg-rypdBrightBlue text-rypdDeepBlack py-3 rounded-lg font-semibold hover:bg-rypdWhite transition-colors duration-300 impact-on-click">Log Selected Workout</button>
+                </div>
+
+                <div class="bg-rypdDarkBlue rounded-xl shadow-md p-6 text-rypdWhite">
+                    <h3 class="text-xl font-orbitron font-semibold text-rypdWhite mb-4">Daily Food Log (Demo)</h3>
+                    <div id="food-log-entries" class="space-y-2 mb-4">
+                        ${demoFoodLog.map(food => `
+                            <div class="bg-rypdBlue p-3 rounded-lg flex justify-between items-center">
+                                <div>
+                                    <p class="font-semibold text-rypdWhite">${food.name}</p>
+                                    <p class="text-xs text-rypdLightGray">${food.calories} kcal | P:${food.protein}g C:${food.carbs}g F:${food.fats}g</p>
+                                </div>
+                                <button class="text-rypdAccentRed hover:text-red-700 delete-food-btn" data-food-index="${demoFoodLog.indexOf(food)}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mb-4 text-sm">
+                        <div class="bg-rypdBlue p-3 rounded-lg text-center">
+                            <p class="text-rypdLightGray">Calories</p>
+                            <p class="font-bold text-rypdBrightBlue">${totalCalories} kcal</p>
+                        </div>
+                        <div class="bg-rypdBlue p-3 rounded-lg text-center">
+                            <p class="text-rypdLightGray">Protein</p>
+                            <p class="font-bold text-rypdBrightBlue">${totalProtein} g</p>
+                        </div>
+                        <div class="bg-rypdBlue p-3 rounded-lg text-center">
+                            <p class="text-rypdLightGray">Carbs</p>
+                            <p class="font-bold text-rypdBrightBlue">${totalCarbs} g</p>
+                        </div>
+                        <div class="bg-rypdBlue p-3 rounded-lg text-center">
+                            <p class="text-rypdLightGray">Fats</p>
+                            <p class="font-bold text-rypdBrightBlue">${totalFats} g</p>
+                        </div>
+                    </div>
+                    <div class="space-y-2 mb-4">
+                        <input type="text" id="food-name-input" class="w-full p-3 border border-rypdMidBlue rounded-lg focus:outline-none focus:ring-2 focus:ring-rypdBrightBlue bg-rypdBlue text-rypdWhite" placeholder="Food Name">
+                        <input type="number" id="food-calories-input" class="w-full p-3 border border-rypdMidBlue rounded-lg focus:outline-none focus:ring-2 focus:ring-rypdBrightBlue bg-rypdBlue text-rypdWhite" placeholder="Calories (kcal)">
+                        <input type="number" id="food-protein-input" class="w-full p-3 border border-rypdMidBlue rounded-lg focus:outline-none focus:ring-2 focus:ring-rypdBrightBlue bg-rypdBlue text-rypdWhite" placeholder="Protein (g)">
+                        <input type="number" id="food-carbs-input" class="w-full p-3 border border-rypdMidBlue rounded-lg focus:outline-none focus:ring-2 focus:ring-rypdBrightBlue bg-rypdBlue text-rypdWhite" placeholder="Carbs (g)">
+                        <input type="number" id="food-fats-input" class="w-full p-3 border border-rypdMidBlue rounded-lg focus:outline-none focus:ring-2 focus:ring-rypdBrightBlue bg-rypdBlue text-rypdWhite" placeholder="Fats (g)">
+                    </div>
+                    <button id="add-food-btn" class="w-full bg-rypdBrightBlue text-rypdDeepBlack py-3 rounded-lg font-semibold hover:bg-rypdWhite transition-colors duration-300">Add Food</button>
+                </div>
+            `;
+
+            // Profile Edit Modal
+            contentArea.innerHTML += `
+                <div id="edit-profile-modal" class="fixed inset-0 bg-rypdDeepBlack bg-opacity-75 flex items-center justify-center z-50 hidden">
+                    <div class="bg-rypdDarkBlue rounded-xl shadow-lg p-6 w-full max-w-md text-rypdWhite">
+                        <h3 class="text-xl font-orbitron font-semibold mb-4">Edit Profile</h3>
+                        <div class="mb-4">
+                            <label for="edit-bio" class="block text-sm font-bold mb-2">Bio</label>
+                            <textarea id="edit-bio" class="w-full p-3 border border-rypdMidBlue rounded-lg focus:outline-none focus:ring-2 focus:ring-rypdBrightBlue bg-rypdBlue text-rypdWhite h-20 resize-y stretch-on-focus"></textarea>
+                        </div>
+                        <div class="mb-4">
+                            <label for="edit-goals" class="block text-sm font-bold mb-2">Fitness Goals</label>
+                            <input type="text" id="edit-goals" class="w-full p-3 border border-rypdMidBlue rounded-lg focus:outline-none focus:ring-2 focus:ring-rypdBrightBlue bg-rypdBlue text-rypdWhite stretch-on-focus">
+                        </div>
+                        <div class="mb-4">
+                            <label for="edit-weight" class="block text-sm font-bold mb-2">Current Weight (kg)</label>
+                            <input type="number" id="edit-weight" class="w-full p-3 border border-rypdMidBlue rounded-lg focus:outline-none focus:ring-2 focus:ring-rypdBrightBlue bg-rypdBlue text-rypdWhite">
+                        </div>
+                        <div class="mb-6">
+                            <label for="edit-height" class="block text-sm font-bold mb-2">Height (cm)</label>
+                            <input type="number" id="edit-height" class="w-full p-3 border border-rypdMidBlue rounded-lg focus:outline-none focus:ring-2 focus:ring-rypdBrightBlue bg-rypdBlue text-rypdWhite">
+                        </div>
+                        <div class="flex justify-end space-x-4">
+                            <button id="cancel-edit-btn" class="bg-gray-600 text-rypdWhite py-2 px-4 rounded-lg font-semibold hover:bg-gray-700 transition-colors duration-300">Cancel</button>
+                            <button id="save-profile-btn" class="bg-rypdBrightBlue text-rypdDeepBlack py-2 px-4 rounded-lg font-semibold hover:bg-rypdWhite transition-colors duration-300">Save Changes</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Initialize Chart.js
+            const ctx = document.getElementById('progressChart').getContext('2d');
+            const progressChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: demoUserProfile.weightHistory.map(log => log.date),
+                    datasets: [{
+                        label: 'Weight (kg)',
+                        data: demoUserProfile.weightHistory.map(log => log.weight),
+                        borderColor: 'rgb(0, 255, 255)', // rypdAccentPrimaryTo (Cyan)
+                        backgroundColor: 'rgba(0, 255, 255, 0.2)',
+                        tension: 0.3,
+                        fill: true,
+                        pointBackgroundColor: 'rgb(0, 255, 255)',
+                        pointBorderColor: 'rgb(0, 255, 255)',
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(58, 80, 104, 0.5)' // rypdMidBlue with opacity
+                            },
+                            ticks: {
+                                color: 'var(--tw-colors-rypdLightGray)' // rypdLightGray
+                            }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            grid: {
+                                color: 'rgba(58, 80, 104, 0.5)' // rypdMidBlue with opacity
+                            },
+                            ticks: {
+                                color: 'var(--tw-colors-rypdLightGray)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: 'var(--tw-colors-rypdWhite)' // rypdWhite
+                            }
+                        }
+                    }
+                }
+            });
+
+
+            document.getElementById('log-weight-btn').addEventListener('click', () => {
+                const newWeightInput = document.getElementById('new-weight-input');
+                const newWeight = parseFloat(newWeightInput.value.trim()); // Parse as float
+                if (!isNaN(newWeight)) {
+                    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD format for chart labels
+                    const newLog = { date: today, weight: newWeight };
+                    demoWeightLogs.unshift({ date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), weight: `${newWeight} kg` }); // For list
+                    demoUserProfile.weightHistory.push(newLog); // Add to chart data
+                    
+                    showMessage("Weight logged! (Demo only, not saved)");
+                    newWeightInput.value = '';
+                    renderProfilePage(); // Re-render to show updated log and chart
+                } else {
+                    showMessage("Please enter a valid weight.");
+                }
+            });
+
+            const workoutSelect = document.getElementById('workout-select');
+            const selectedWorkoutDetails = document.getElementById('selected-workout-details');
+            const logWorkoutBtn = document.getElementById('log-workout-btn');
+
+            workoutSelect.addEventListener('change', (event) => {
+                const selectedWorkoutId = event.target.value;
+                const workout = demoWorkouts.find(w => w.id === selectedWorkoutId);
+                selectedWorkoutDetails.innerHTML = '';
+                if (workout) {
+                    selectedWorkoutDetails.classList.remove('hidden');
+                    workout.exercises.forEach(exercise => {
+                        const exerciseElement = document.createElement('p');
+                        exerciseElement.className = 'text-sm text-rypdWhite';
+                        exerciseElement.innerHTML = `<span class="font-semibold">${exercise.name}:</span> ${exercise.sets} sets of ${exercise.reps} reps. (${exercise.notes})`;
+                        selectedWorkoutDetails.appendChild(exerciseElement);
+                    });
+                } else {
+                    selectedWorkoutDetails.classList.add('hidden');
+                }
+            });
+
+            logWorkoutBtn.addEventListener('click', () => {
+                if (workoutSelect.value) {
+                    const selectedWorkoutName = workoutSelect.options[workoutSelect.selectedIndex].text;
+                    showMessage(`Workout "${selectedWorkoutName}" logged! (Demo only)`);
+                    workoutSelect.value = ""; // Reset select
+                    selectedWorkoutDetails.classList.add('hidden'); // Hide details
+                } else {
+                    showMessage("Please select a workout to log.");
+                }
+            });
+
+            // Diet Logging functionality
+            const addFoodBtn = document.getElementById('add-food-btn');
+            addFoodBtn.addEventListener('click', () => {
+                const name = document.getElementById('food-name-input').value.trim();
+                const calories = parseInt(document.getElementById('food-calories-input').value);
+                const protein = parseInt(document.getElementById('food-protein-input').value);
+                const carbs = parseInt(document.getElementById('food-carbs-input').value);
+                const fats = parseInt(document.getElementById('food-fats-input').value);
+
+                if (name && !isNaN(calories) && !isNaN(protein) && !isNaN(carbs) && !isNaN(fats)) {
+                    demoFoodLog.push({ name, calories, protein, carbs, fats });
+                    showMessage("Food added! (Demo only)");
+                    // Clear inputs
+                    document.getElementById('food-name-input').value = '';
+                    document.getElementById('food-calories-input').value = '';
+                    document.getElementById('food-protein-input').value = '';
+                    document.getElementById('food-carbs-input').value = '';
+                    document.getElementById('food-fats-input').value = '';
+                    renderProfilePage(); // Re-render to update totals and list
+                } else {
+                    showMessage("Please fill all food details correctly.");
+                }
+            });
+
+            // Delete food item functionality
+            document.querySelectorAll('.delete-food-btn').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const index = parseInt(event.currentTarget.dataset.foodIndex);
+                    if (index >= 0 && index < demoFoodLog.length) {
+                        demoFoodLog.splice(index, 1);
+                        showMessage("Food item deleted! (Demo only)");
+                        renderProfilePage(); // Re-render to update list and totals
+                    }
+                });
+            });
+
+            // Profile Editing Logic
+            const editProfileModal = document.getElementById('edit-profile-modal');
+            document.getElementById('edit-profile-btn').addEventListener('click', () => {
+                document.getElementById('edit-bio').value = demoUserProfile.bio;
+                document.getElementById('edit-goals').value = demoUserProfile.goals;
+                document.getElementById('edit-weight').value = parseFloat(demoUserProfile.currentWeight);
+                document.getElementById('edit-height').value = parseFloat(demoUserProfile.height);
+                editProfileModal.classList.remove('hidden');
+            });
+
+            document.getElementById('cancel-edit-btn').addEventListener('click', () => {
+                editProfileModal.classList.add('hidden');
+            });
+
+            document.getElementById('save-profile-btn').addEventListener('click', () => {
+                demoUserProfile.bio = document.getElementById('edit-bio').value;
+                demoUserProfile.goals = document.getElementById('edit-goals').value;
+                demoUserProfile.currentWeight = `${document.getElementById('edit-weight').value} kg`;
+                demoUserProfile.height = `${document.getElementById('edit-height').value} cm`;
+                showMessage("Profile updated! (Demo only)");
+                editProfileModal.classList.add('hidden');
+                renderProfilePage(); // Re-render profile with new data
+            });
+        }
+
+        function renderWorkoutPlansPage() {
+            contentArea.innerHTML = `
+                <h2 class="text-2xl font-orbitron font-semibold text-rypdWhite mb-6 text-center">Workout Plans</h2>
+                <div id="workout-plans-container" class="space-y-6"></div>
+            `;
+            const workoutPlansContainer = document.getElementById('workout-plans-container');
+
+            demoWorkouts.forEach(plan => {
+                const planElement = document.createElement('div');
+                planElement.className = 'bg-rypdDarkBlue rounded-xl shadow-md p-6 text-rypdWhite cursor-pointer hover:bg-rypdBlue transition-colors duration-200';
+                planElement.innerHTML = `
+                    <h3 class="text-xl font-orbitron font-semibold text-rypdWhite mb-2">${plan.name}</h3>
+                    <p class="text-rypdLightGray mb-4">Exercises: ${plan.exercises.length}</p>
+                    <button class="bg-gradient-to-r from-rypdAccentPrimaryFrom to-rypdAccentPrimaryTo text-rypdWhite py-2 px-4 rounded-lg font-semibold hover:from-purple-700 hover:to-blue-600 transition-colors duration-300 view-plan-details-btn" data-plan-id="${plan.id}">View Details</button>
+                    <div id="plan-details-${plan.id}" class="mt-4 space-y-2 bg-rypdBlue p-3 rounded-lg hidden">
+                        ${plan.exercises.map(exercise => `
+                            <p class="text-sm text-rypdWhite"><span class="font-semibold">${exercise.name}:</span> ${exercise.sets} sets of ${exercise.reps} reps. (${exercise.notes})</p>
+                        `).join('')}
+                    </div>
+                `;
+                workoutPlansContainer.appendChild(planElement);
+            });
+
+            document.querySelectorAll('.view-plan-details-btn').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const planId = event.currentTarget.dataset.planId;
+                    const detailsDiv = document.getElementById(`plan-details-${planId}`);
+                    detailsDiv.classList.toggle('hidden');
+                    event.currentTarget.textContent = detailsDiv.classList.contains('hidden') ? 'View Details' : 'Hide Details';
+                });
+            });
+        }
+
+        function renderNutritionRecipesPage() {
+            contentArea.innerHTML = `
+                <h2 class="text-2xl font-orbitron font-semibold text-rypdWhite mb-6 text-center">Nutrition Recipes</h2>
+                <div id="recipes-container" class="space-y-6"></div>
+            `;
+            const recipesContainer = document.getElementById('recipes-container');
+
+            demoRecipes.forEach(recipe => {
+                const recipeElement = document.createElement('div');
+                recipeElement.className = 'bg-rypdDarkBlue rounded-xl shadow-md p-6 text-rypdWhite';
+                recipeElement.innerHTML = `
+                    <img src="${recipe.imageUrl}" alt="${recipe.name}" class="w-full h-48 object-cover rounded-lg mb-4">
+                    <h3 class="text-xl font-orbitron font-semibold text-rypdWhite mb-2">${recipe.name}</h3>
+                    <p class="text-rypdLightGray mb-3">${recipe.description}</p>
+                    <p class="text-sm font-semibold text-rypdAccentPrimaryTo mb-4">Macros: ${recipe.macros}</p>
+                    <button class="bg-gradient-to-r from-rypdAccentPrimaryFrom to-rypdAccentPrimaryTo text-rypdWhite py-2 px-4 rounded-lg font-semibold hover:from-purple-700 hover:to-blue-600 transition-colors duration-300 view-recipe-details-btn" data-recipe-id="${recipe.id}">View Recipe</button>
+                    <div id="recipe-details-${recipe.id}" class="mt-4 space-y-2 bg-rypdBlue p-3 rounded-lg hidden">
+                        <p class="font-semibold text-rypdWhite">Ingredients:</p>
+                        <ul class="list-disc list-inside text-sm text-rypdWhite">
+                            ${recipe.ingredients.map(item => `<li>${item}</li>`).join('')}
+                        </ul>
+                        <p class="font-semibold text-rypdWhite mt-3">Instructions:</p>
+                        <p class="text-sm text-rypdWhite">${recipe.instructions}</p>
+                    </div>
+                `;
+                recipesContainer.appendChild(recipeElement);
+            });
+
+            document.querySelectorAll('.view-recipe-details-btn').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const recipeId = event.currentTarget.dataset.recipeId;
+                    const detailsDiv = document.getElementById(`recipe-details-${recipeId}`);
+                    detailsDiv.classList.toggle('hidden');
+                    event.currentTarget.textContent = detailsDiv.classList.contains('hidden') ? 'View Recipe' : 'Hide Recipe';
+                });
+            });
+        }
+
+        function renderAIAssistantPage() {
+            // This function is now effectively a redirect to the Rypd AI chat in messages
+            // It's kept for clarity if the nav button still points here directly
+            renderConversationPage('chat_ai');
+        }
+
+        function renderChallengesPage() {
+            contentArea.innerHTML = `
+                <h2 class="text-2xl font-orbitron font-semibold text-rypdWhite mb-6 text-center">Challenges</h2>
+                <div id="challenges-container" class="space-y-6"></div>
+            `;
+            const challengesContainer = document.getElementById('challenges-container');
+
+            demoChallenges.forEach(challenge => {
+                const challengeElement = document.createElement('div');
+                challengeElement.className = 'bg-rypdDarkBlue rounded-xl shadow-md p-6 text-rypdWhite';
+                challengeElement.innerHTML = `
+                    <h3 class="text-xl font-orbitron font-semibold text-rypdWhite mb-2">${challenge.title}</h3>
+                    <p class="text-rypdWhite mb-3">${challenge.description}</p>
+                    <div class="flex items-center text-rypdLightGray mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                        <span>${challenge.participants} Participants</span>
+                    </div>
+                    <button class="w-full bg-rypdAccentGreen text-rypdWhite py-2 rounded-lg font-semibold hover:bg-[#00FF00] transition-colors duration-300 impact-on-click">Join Challenge</button>
+                `;
+                challengesContainer.appendChild(challengeElement);
+            });
+
+            document.querySelectorAll('.join-challenge-btn').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const challengeId = event.currentTarget.dataset.challengeId;
+                    const challenge = demoChallenges.find(c => c.id === challengeId);
+                    if (challenge) {
+                        showMessage(`Joined "${challenge.title}"! (Demo only)`);
+                        event.currentTarget.textContent = 'Joined!';
+                        event.currentTarget.disabled = true;
+                        event.currentTarget.classList.remove('bg-rypdAccentGreen', 'hover:bg-[#00FF00]');
+                        event.currentTarget.classList.add('bg-gray-600', 'cursor-not-allowed'); // Darker gray for disabled
+
+                        // The Thing Easter Egg: Clobberin' Time!
+                        clobberinTimeClickCount++;
+                        if (clobberinTimeClickCount >= 3) { // Trigger after 3 clicks on any challenge button
+                            clobberinTimeMsg.classList.remove('hidden');
+                            clobberinTimeMsg.classList.add('show');
+                            setTimeout(() => {
+                                clobberinTimeMsg.classList.remove('show');
+                                clobberinTimeMsg.classList.add('hidden');
+                                clobberinTimeClickCount = 0; // Reset count
+                            }, 2000);
+                        }
+                    }
+                });
+            });
+        }
+
+        // New: renderMessagesPage (Chat List)
+        function renderMessagesPage() {
+            contentArea.innerHTML = `
+                <h2 class="text-2xl font-orbitron font-semibold text-rypdWhite mb-6 text-center">Chats</h2>
+                <div id="chat-list-container" class="space-y-4">
+                    ${demoChats.map(chat => `
+                        <div class="bg-rypdDarkBlue rounded-xl shadow-md p-4 flex items-center space-x-4 cursor-pointer hover:bg-rypdBlue transition-colors duration-200 chat-item" data-chat-id="${chat.id}">
+                            <img src="${chat.avatar}" alt="${chat.name} Avatar" class="w-12 h-12 rounded-full object-cover border-2 border-rypdAccentPrimaryTo">
+                            <div class="flex-grow">
+                                <p class="font-semibold text-rypdWhite">${chat.name}</p>
+                                <p class="text-sm text-rypdLightGray truncate">${chat.lastMessage}</p>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            document.querySelectorAll('.chat-item').forEach(item => {
+                item.addEventListener('click', (event) => {
+                    const chatId = event.currentTarget.dataset.chatId;
+                    renderConversationPage(chatId); // Navigate to individual conversation
+                });
+            });
+        }
+
+        // New: renderConversationPage (Individual Chat View)
+        function renderConversationPage(chatId) {
+            const chat = demoChats.find(c => c.id === chatId);
+            if (!chat) {
+                showMessage("Chat not found!");
+                showPage('messages'); // Go back to chat list
+                return;
+            }
+
+            // Determine if this is the AI chat for specific styling/logic
+            const isAIChat = chat.isAI;
+            const chatBgClass = isAIChat ? 'ai-chat-background' : ''; // Apply AI specific background
+
+            contentArea.innerHTML = `
+                <div class="flex items-center mb-6">
+                    <button id="back-to-chats-btn" class="text-rypdAccentPrimaryTo hover:text-rypdAccentPrimaryFrom transition-colors duration-200 mr-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m15 18-6-6 6-6"/>
+                        </svg>
+                    </button>
+                    <img src="${chat.avatar}" alt="${chat.name} Avatar" class="w-10 h-10 rounded-full object-cover border-2 border-rypdAccentPrimaryTo mr-3">
+                    <h2 class="text-2xl font-orbitron font-semibold text-rypdWhite">${chat.name}</h2>
+                </div>
+
+                <div class="bg-rypdDarkBlue rounded-xl shadow-md p-4 text-rypdWhite flex flex-col h-[450px] ${chatBgClass}">
+                    <div id="conversation-display" class="flex-grow overflow-y-auto space-y-4 p-2 mb-4 bg-rypdBlue rounded-lg">
+                        ${chat.messages.map(msg => `
+                            <div class="${msg.sender === 'You' ? 'text-right' : 'text-left'}">
+                                <span class="inline-block px-4 py-2 rounded-lg ${msg.sender === 'You' ? 'bg-gradient-to-r from-rypdAccentPrimaryFrom to-rypdAccentPrimaryTo text-rypdWhite' : 'bg-rypdMidBlue text-rypdWhite'}">
+                                    <span class="font-semibold">${msg.sender === 'You' ? '' : msg.sender + ':'}</span> ${msg.text}
+                                    <span class="block text-xs text-right ${msg.sender === 'You' ? 'text-blue-200' : 'text-rypdLightGray'}">${msg.time}</span>
+                                </span>
+                            </div>
+                        `).join('')}
+                        <div id="typing-indicator" class="text-left text-sm text-rypdLightGray mt-2 hidden">
+                            <span class="inline-block px-4 py-2 rounded-lg bg-rypdMidBlue">
+                                Rypd AI is typing<span class="typing-indicator"><span>.</span><span>.</span><span>.</span></span>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="flex">
+                        <input type="text" id="new-message-input" placeholder="Type a message..." class="flex-grow p-3 border border-rypdMidBlue rounded-l-lg focus:outline-none focus:ring-2 focus:ring-rypdAccentPrimaryTo bg-rypdBlue text-rypdWhite">
+                        <button id="send-message-btn" class="bg-gradient-to-r from-rypdAccentPrimaryFrom to-rypdAccentPrimaryTo text-rypdWhite px-4 py-2 rounded-r-lg font-semibold hover:from-purple-700 hover:to-blue-600 transition-colors duration-300">Send</button>
+                    </div>
+                </div>
+            `;
+
+            // Scroll to bottom of conversation
+            const conversationDisplay = document.getElementById('conversation-display');
+            conversationDisplay.scrollTop = conversationDisplay.scrollHeight;
+
+            document.getElementById('back-to-chats-btn').addEventListener('click', () => {
+                showPage('messages'); // Go back to chat list
+            });
+
+            document.getElementById('send-message-btn').addEventListener('click', async () => {
+                const input = document.getElementById('new-message-input');
+                const typingIndicator = document.getElementById('typing-indicator');
+                const userMessageText = input.value.trim();
+
+                if (!userMessageText) {
+                    showMessage("Message cannot be empty.");
+                    return;
+                }
+
+                // Add user's message to local chat history
+                const newUserMessage = { sender: 'You', text: userMessageText, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
+                chat.messages.push(newUserMessage);
+                input.value = ''; // Clear input immediately
+                updateConversationDisplay(); // Update UI with user's message
+
+                if (isAIChat) {
+                    typingIndicator.classList.remove('hidden'); // Show typing indicator
+                    conversationDisplay.scrollTop = conversationDisplay.scrollHeight; // Scroll to show typing
+
+                    try {
+                        const apiKey = "AIzaSyArciJov5FzUZwLFyC0qqDKns_nhuK0ACA"; // User's provided Gemini API Key
+                        if (apiKey === "YOUR_GEMINI_API_KEY_HERE" || !apiKey) {
+                            showMessage("Gemini API Key is not configured for AI chat.");
+                            return;
+                        }
+
+                        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                        const payload = { contents: [{ role: "user", parts: [{ text: userMessageText }] }] };
+
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        const result = await response.json();
+
+                        if (result.candidates && result.candidates.length > 0 &&
+                            result.candidates[0].content && result.candidates[0].content.parts &&
+                            result.candidates[0].content.parts.length > 0) {
+                            const aiResponseText = result.candidates[0].content.parts[0].text;
+                            const newAIMessage = { sender: 'Rypd AI', text: aiResponseText, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
+                            chat.messages.push(newAIMessage);
+                            showMessage("AI response received!");
+                        } else {
+                            console.error("Gemini API response structure unexpected:", result);
+                            const errorMessage = "Rypd AI: Sorry, I couldn't generate a response right now. Please try again.";
+                            chat.messages.push({ sender: 'Rypd AI', text: errorMessage, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+                            showMessage("Error from Rypd AI.");
+                        }
+                    } catch (error) {
+                        console.error("Error calling Gemini API for AI chat:", error);
+                        const errorMessage = "Rypd AI: I'm having trouble connecting. Please check your internet.";
+                        chat.messages.push({ sender: 'Rypd AI', text: errorMessage, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+                        showMessage(`Network error: ${error.message}`);
+                    } finally {
+                        typingIndicator.classList.add('hidden'); // Hide typing indicator
+                        updateConversationDisplay(); // Update UI with AI's message
+                    }
+                } else {
+                    // Simulate a reply for non-AI chats
+                    setTimeout(() => {
+                        const simulatedReply = { sender: chat.name, text: `(Demo) Got your message: "${userMessageText}"`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
+                        chat.messages.push(simulatedReply);
+                        showMessage("Message sent! (Demo only)");
+                        updateConversationDisplay();
+                    }, 1000);
+                }
+                chat.lastMessage = userMessageText; // Update last message in chat list
+            });
+
+            // Helper function to update the conversation display
+            function updateConversationDisplay() {
+                conversationDisplay.innerHTML = chat.messages.map(msg => `
+                    <div class="${msg.sender === 'You' ? 'text-right' : 'text-left'}">
+                        <span class="inline-block px-4 py-2 rounded-lg ${msg.sender === 'You' ? 'bg-rypdBrightBlue text-rypdDeepBlack' : 'bg-rypdMidBlue text-rypdWhite'}">
+                            <span class="font-semibold">${msg.sender === 'You' ? '' : msg.sender + ':'}</span> ${msg.text}
+                            <span class="block text-xs text-right ${msg.sender === 'You' ? 'text-rypdDeepBlack' : 'text-rypdLightMutedBlue'}">${msg.time}</span>
+                        </span>
+                    </div>
+                `).join('');
+                conversationDisplay.scrollTop = conversationDisplay.scrollHeight; // Scroll to bottom
+            }
+        }
+
+        // New: renderStudiesPage function
+        function renderStudiesPage() {
+            contentArea.innerHTML = `
+                <h2 class="text-2xl font-orbitron font-semibold text-rypdWhite mb-6 text-center">Certified Studies</h2>
+                <div id="studies-container" class="space-y-6"></div>
+            `;
+            const studiesContainer = document.getElementById('studies-container');
+
+            demoStudies.forEach(study => {
+                const studyElement = document.createElement('div');
+                studyElement.className = 'bg-rypdDarkBlue rounded-xl shadow-md p-6 text-rypdWhite';
+                studyElement.innerHTML = `
+                    <div class="flex items-center mb-3">
+                        ${study.icon}
+                        <h3 class="text-xl font-orbitron font-semibold text-rypdWhite ml-3">${study.title}</h3>
+                    </div>
+                    <p class="text-rypdWhite mb-3">${study.summary}</p>
+                    <p class="text-sm text-rypdLightMutedBlue mb-4">Source: ${study.source}</p>
+                    <a href="${study.url}" target="_blank" class="bg-rypdBrightBlue text-rypdDeepBlack py-2 px-4 rounded-lg font-semibold text-sm hover:bg-rypdWhite transition-colors duration-300 inline-flex items-center">
+                        Read More
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M7 7h10v10"/><path d="M7 17 17 7"/>
+                        </svg>
+                    </a>
+                `;
+                studiesContainer.appendChild(studyElement);
+            });
+        }
+
+
+        // --- Initialization ---
+
+        window.onload = async () => {
+            // Splash screen button listener
+            continueAppBtn.addEventListener('click', () => {
+                splashScreen.classList.add('splash-exit-animation'); // Start splash screen exit animation
+
+                setTimeout(() => {
+                    splashScreen.classList.add('hidden'); // Hide splash screen after animation
+                    contentArea.classList.remove('hidden');
+                    navBar.classList.remove('hidden');
+
+                    // Trigger app entry animation
+                    contentArea.classList.add('app-enter-animation');
+                    navBar.classList.add('app-enter-animation');
+
+                    // Initial page render after app UI is visible
+                    showPage(currentPage);
+                }, 800); // Match this timeout to the splash-exit transition duration
+            });
+
+            // New: Mousemove effect for splash screen background
+            splashScreen.addEventListener('mousemove', (e) => {
+                const rect = splashScreen.getBoundingClientRect();
+                const x = (e.clientX - rect.left) / rect.width * 100; // Percentage from left
+                const y = (e.clientY - rect.top) / rect.height * 100; // Percentage from top
+                splashScreen.style.setProperty('--mouse-x', `${x}%`);
+                splashScreen.style.setProperty('--mouse-y', `${y}%`);
+            });
+
+
+            try {
+                // --- YOUR FIREBASE CONFIGURATION ---
+                // Replace this entire block with your actual Firebase configuration.
+                // You copied this from the Firebase Console (Project settings -> General -> Your apps -> Firebase SDK snippet -> Config).
+                // It should look like:
+                // const YOUR_FIREBASE_CONFIG = {
+                //   apiKey: "AIzaSyCxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                //   authDomain: "your-project-id-12345.firebaseapp.com",
+                //   projectId: "your-project-id-12345",
+                //   storageBucket: "your-project-id-12345.appspot.com",
+                //   messagingSenderId: "123456789012",
+                //   appId: "1:123456789012:web:abcdef1234567890abcdef"
+                // };
+                const YOUR_FIREBASE_CONFIG = {
+                    apiKey: "AIzaSyCKW13ej5fGdtv-LpcKsuulsx6zM4aAJRw", // Corrected Firebase API Key
+                    authDomain: "rypd-demo.firebaseapp.com",
+                    projectId: "rypd-demo",
+                    storageBucket: "rypd-demo.firebasestorage.app",
+                    messagingSenderId: "806053873087",
+                    appId: "1:806053873087:web:0591e0b6ea6c8245818d0a"
+                };
+                window.app = initializeApp(YOUR_FIREBASE_CONFIG);
+                window.db = getFirestore(window.app);
+                window.auth = getAuth(window.app);
+                // --- END OF YOUR FIREBASE CONFIGURATION ---
+
+                // Sign in with custom token or anonymously
+                // If you are running locally, __initial_auth_token will be undefined.
+                // The app will then sign in anonymously using your Firebase project.
+                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                
+                // Added a check for non-empty token and a try-catch for signInWithCustomToken
+                // to gracefully fall back to anonymous sign-in if the custom token is invalid.
+                if (initialAuthToken && initialAuthToken.length > 0) {
+                    try {
+                        await signInWithCustomToken(window.auth, initialAuthToken);
+                        console.log("Signed in with custom token.");
+                    } catch (customTokenError) {
+                        console.warn("Custom token sign-in failed, attempting anonymous sign-in:", customTokenError);
+                        await signInAnonymously(window.auth);
+                        console.log("Signed in anonymously after custom token failure.");
+                    }
+                } else {
+                    await signInAnonymously(window.auth);
+                    console.log("Signed in anonymously.");
+                }
+
+                // Listen for auth state changes to set userId
+                onAuthStateChanged(window.auth, (user) => {
+                    if (user) {
+                        window.userId = user.uid;
+                        demoUserProfile.userId = user.uid; // Update demo profile with real user ID
+                        console.log("User authenticated:", user.uid);
+                    } else {
+                        window.userId = 'Not Authenticated (Demo)'; // Fallback for local run without auth
+                        demoUserProfile.userId = 'Not Authenticated (Demo)';
+                        console.log("User not authenticated.");
+                    }
+                    window.isAuthReady = true; // Mark auth as ready
+                    // The actual page rendering now happens after splash screen transition
+                });
+
+                // Set up navigation button click handlers
+                navButtons.feed.addEventListener('click', () => showPage('feed'));
+                navButtons.create.addEventListener('click', () => showPage('create'));
+                navButtons.profile.addEventListener('click', () => showPage('profile'));
+                navButtons.ai.addEventListener('click', () => showPage('ai'));
+                navButtons.challenges.addEventListener('click', () => showPage('challenges'));
+                navButtons.messages.addEventListener('click', () => showPage('messages'));
+                navButtons.studies.addEventListener('click', () => showPage('studies'));
+                navButtons.workouts.addEventListener('click', () => showPage('workouts'));
+                navButtons.recipes.addEventListener('click', () => showPage('recipes'));
+
+            } catch (error) {
+                console.error("Error initializing Firebase or app:", error);
+                showMessage(`Initialization error: ${error.message}`);
+            }
+        };
+    </script>
+</body>
+</html>
